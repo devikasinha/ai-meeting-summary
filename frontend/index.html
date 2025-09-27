@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>AI Meeting Assistant</title>
+  
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: #f8f9fa;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 900px;
+      width: 100%;
+      margin: 30px auto;
+      padding: 30px;
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+      border: 1px solid #e9ecef;
+    }
+    h1 {
+      text-align: center;
+      color: #343a40;
+      margin-bottom: 25px;
+      font-size: 1.8rem;
+    }
+    section {
+      margin: 25px 0;
+    }
+    h2 {
+      margin-bottom: 12px;
+      color: #495057;
+      font-size: 1.3rem;
+      border-bottom: 2px solid #007bff;
+      padding-bottom: 5px;
+    }
+    .upload-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      border: 2px dashed #007bff;
+      padding: 20px;
+      border-radius: 8px;
+      background-color: #f0f8ff;
+    }
+    #videoUpload {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 10px;
+    }
+    textarea {
+      width: 100%;
+      box-sizing: border-box;
+      height: 200px;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid #ced4da;
+      resize: vertical;
+      font-size: 14px;
+      line-height: 1.6;
+      background-color: #f8f9fa;
+      transition: border-color 0.3s;
+    }
+    button {
+      margin-top: 12px;
+      padding: 12px 24px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 500;
+      transition: background-color 0.2s, opacity 0.2s;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    button:disabled {
+      background-color: #6c757d;
+      cursor: not-allowed;
+      opacity: 0.7;
+    }
+    /* --- New Loading & Status Styles --- */
+    .hidden {
+      display: none;
+    }
+    .spinner {
+      border: 4px solid rgba(0, 0, 0, 0.1);
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border-left-color: #007bff;
+      animation: spin 1s ease infinite;
+      margin-top: 15px;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    #statusText {
+      margin-top: 10px;
+      color: #495057;
+      font-weight: 500;
+    }
+    .success-border {
+      border-color: #28a745;
+    }
+    .error-border {
+      border-color: #dc3545;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Automated Meeting Transcript & MOM Generator 🤖</h1>
+
+    <section class="upload-section">
+      <h2>1. Upload Recording</h2>
+      <input type="file" id="videoUpload" accept="video/*,audio/*">
+      <button id="processBtn">Generate Transcript & MOM</button>
+      <div id="spinner" class="spinner hidden"></div>
+      <p id="statusText" class="hidden"></p>
+    </section>
+
+    <section class="transcript-section">
+      <h2>2. Meeting Transcript</h2>
+      <textarea id="transcriptBox" readonly placeholder="Your meeting transcript will appear here..."></textarea>
+    </section>
+
+    <section class="mom-section">
+      <h2>3. Minutes of Meeting (Editable)</h2>
+      <textarea id="momBox" placeholder="The AI-generated Minutes of Meeting will appear here..."></textarea>
+      <button id="downloadPdf">Download MOM as PDF</button>
+    </section>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <script>
+    const backendURL = "https://ai-meeting-summary-generator-production.up.railway.app/transcribe";
+    
+    // Get references to UI elements
+    const processBtn = document.getElementById('processBtn');
+    const spinner = document.getElementById('spinner');
+    const statusText = document.getElementById('statusText');
+    const transcriptBox = document.getElementById('transcriptBox');
+    const momBox = document.getElementById('momBox');
+
+    processBtn.addEventListener("click", async () => {
+      const fileInput = document.getElementById("videoUpload");
+      if (!fileInput.files.length) {
+        alert("Please upload a video or audio file first!");
+        return;
+      }
+      
+      // 1. --- Start Loading State ---
+      processBtn.disabled = true;
+      processBtn.innerText = 'Processing...';
+      spinner.classList.remove('hidden');
+      statusText.classList.remove('hidden');
+      statusText.innerText = 'Step 1 of 2: Uploading your file...';
+      transcriptBox.value = '';
+      momBox.value = '';
+      transcriptBox.classList.remove('success-border', 'error-border');
+      momBox.classList.remove('success-border', 'error-border');
+
+      const formData = new FormData();
+      formData.append("file", fileInput.files[0]);
+
+      try {
+        statusText.innerText = "Step 2 of 2: Transcribing & Generating Summary...\n(This can take up to a minute on the first try!)";
+        
+        const response = await fetch(backendURL, {
+          method: "POST",
+          body: formData
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || `Server error: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        // 3. --- Handle Success State ---
+        if (data.transcript && data.mom) {
+          transcriptBox.value = data.transcript;
+          momBox.value = data.mom;
+          statusText.innerText = '✅ Success!';
+          transcriptBox.classList.add('success-border');
+          momBox.classList.add('success-border');
+        } else {
+          throw new Error("Invalid data received from the server.");
+        }
+      } catch (error) {
+        // 4. --- Handle Error State ---
+        console.error("Error:", error);
+        transcriptBox.value = "An error occurred: " + error.message + "\n\nThis is common on the first attempt due to a server 'cold start'. Please try again in a moment.";
+        momBox.value = "Failed to generate MOM.";
+        statusText.innerText = '❌ Failed!';
+        transcriptBox.classList.add('error-border');
+        momBox.classList.add('error-border');
+      } finally {
+        // 5. --- Reset UI State ---
+        processBtn.disabled = false;
+        processBtn.innerText = 'Generate Transcript & MOM';
+        spinner.classList.add('hidden');
+        // Hide status text after 5 seconds
+        setTimeout(() => {
+          statusText.classList.add('hidden');
+        }, 5000);
+      }
+    });
+
+    // Download MOM as PDF (no changes needed here)
+    document.getElementById("downloadPdf").addEventListener("click", () => {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      const momText = document.getElementById("momBox").value;
+      
+      if (!momText) {
+          alert("There is no content to download!");
+          return;
+      }
+      doc.setFont("helvetica");
+      doc.setFontSize(12);
+      const splitText = doc.splitTextToSize(momText, 180);
+      doc.text(splitText, 10, 10);
+      doc.save("Minutes_of_Meeting.pdf");
+    });
+  </script>
+</body>
+</html>
