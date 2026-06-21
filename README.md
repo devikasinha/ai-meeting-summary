@@ -8,7 +8,7 @@ This project is a full-stack web application designed to automate the process of
 
 -   **Video/Audio Upload**: Simple interface to upload meeting recordings.
 -   **AI-Powered Transcription**: Utilizes **Deepgram's** API for fast and accurate speech-to-text conversion.
--   **Automated MOM Generation**: Leverages the **Groq API** with the Llama 3.1 model to intelligently summarize the transcript into a professional MOM format.
+-   **Automated MOM Generation**: Leverages the **Groq API** with the Llama 3.1 model to intelligently summarize the transcript into a professional MOM format and also add the text format.
 -   **Editable Content**: Both the transcript and the generated MOM can be reviewed and manually edited in the browser.
 -   **PDF Export**: Download the finalized MOM as a clean, formatted PDF with a single click.
 
