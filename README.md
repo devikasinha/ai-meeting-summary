@@ -2,9 +2,6 @@
 
 
 This project is a full-stack web application designed to automate the process of creating Minutes of Meeting (MOM). It takes a video or audio recording of a meeting, generates a full transcript, and then uses a Large Language Model (LLM) to create a structured, editable summary with key discussions, decisions, and action items.
-
----
-
 ### ## ✨ Key Features
 
 -   **Video/Audio Upload**: Simple interface to upload meeting recordings.
